@@ -16,20 +16,7 @@ function createBackendRouter(options = {}) {
     options.storagePath || path.join(__dirname, "data", "messages.json");
   const graphApiVersion = options.graphApiVersion || process.env.WA_GRAPH_API_VERSION || "v25.0";
 
-  router.use((req, res, next) => {
-    const origin = req.headers.origin || "*";
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-
-    if (req.method === "OPTIONS") {
-      res.status(204).end();
-      return;
-    }
-
-    next();
-  });
+  // CORS is now handled globally in index.js
   router.use(express.json({ limit: "1mb" }));
   router.use(express.urlencoded({ extended: false }));
 
