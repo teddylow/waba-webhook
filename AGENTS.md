@@ -122,3 +122,14 @@ When changing API contracts between the widget and backend:
 - [`appsail-nodejs/index.js`](/Users/teddy/waba_webhook/appsail-nodejs/index.js): AppSail backend entry
 - [`appsail-nodejs/app-config.json`](/Users/teddy/waba_webhook/appsail-nodejs/app-config.json): AppSail runtime/deploy config
 - [`catalyst.json`](/Users/teddy/waba_webhook/catalyst.json): Catalyst component mapping
+
+## Zoho Signal Configuration
+
+To ensure Zoho Signals work correctly, you must configure the following environment variables in your Zoho Catalyst console for the AppSail service:
+
+- `ZOHO_CRM_SIGNAL_NAMESPACE`: Set this to `zohocrmsignalnamespace_waba`.
+- `ZOHO_CRM_SIGNAL_ACTION_URL`: Set this to your deployed AppSail URL (e.g., `https://waba-10123192285.development.catalystappsail.com`).
+- `ZOHO_CRM_SIGNAL_ACTION_DISPLAY_NAME`: (Optional) The text displayed on the action button in the Zoho Signal (e.g., "Open WhatsApp").
+- `ZOHO_CRM_SIGNAL_ACTION_OPEN_IN`: (Optional) Set to `popup` or `tab` (defaults to `popup`).
+
+Make sure the namespace in Zoho CRM settings matches exactly with `zohocrmsignalnamespace_waba`.
