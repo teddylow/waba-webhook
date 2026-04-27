@@ -281,12 +281,12 @@ function createSignalContext(payload) {
       `${recordData.First_Name || ""} ${recordData.Last_Name || ""}`.trim(),
     ]),
     phone      : normalizePhone(firstNonEmpty([
+      recordData.Mobile,
       signalData.mobile,
       signalData.phone,
       signalData.wa_id,
       signalData.from,
       signalData.whatsapp_number,
-      recordData.Mobile,
       recordData.Phone,
       recordData.Other_Phone,
       // Fallback to searching in the message body if it's a signal
@@ -420,8 +420,8 @@ async function searchCRMRecords(query) {
   if (normalized) {
     modules.forEach(moduleName => {
       criteriaByModule.push([moduleName, [
-        `(Phone:equals:${normalized})`,
         `(Mobile:equals:${normalized})`,
+        `(Phone:equals:${normalized})`,
         `(Other_Phone:equals:${normalized})`,
       ]]);
     });

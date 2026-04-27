@@ -885,6 +885,8 @@ async function findZohoRecordByPhone(phone) {
   );
 
   if (contact) {
+    // If we found a contact, we still want to make sure we use the normalized phone we searched for
+    // as the primary phone if the contact's Mobile field is empty or different.
     return toZohoRecordMatch("Contacts", contact, normalizedPhone);
   }
 
@@ -942,9 +944,9 @@ function toZohoRecordMatch(moduleName, record, fallbackPhone) {
     email: record.Email || "",
     phone: normalizePhone(
       record.Mobile ||
+      fallbackPhone ||
       record.Phone ||
-      record.Other_Phone ||
-      fallbackPhone
+      record.Other_Phone
     ),
   };
 }
