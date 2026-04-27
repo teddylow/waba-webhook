@@ -673,7 +673,10 @@ async function sendMessage() {
     }
   } catch (err) {
     console.error("[Widget] Send message error:", err);
-    showStatus("Network error. Please try again.", "error", 5000);
+    const msg = err.name === "TypeError" && err.message === "Failed to fetch"
+      ? "Network error (CORS or Offline). Check backend URL."
+      : `Error: ${err.message || "Unknown error"}`;
+    showStatus(msg, "error", 7000);
   } finally {
     DOM.sendBtn.disabled = false;
     DOM.messageInput.focus();
