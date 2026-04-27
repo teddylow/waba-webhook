@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WhatsApp Widget</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background-color: #00a884;
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+        }
+        #contact-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        #contact-phone {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* Signal Panel */
+        .signal-panel {
+            background-color: #fff3cd;
+            border-bottom: 1px solid #ffeeba;
+            padding: 10px 16px;
+            display: none;
+        }
+        .signal-panel.show {
+            display: block;
+        }
+        .signal-subject {
+            font-weight: 600;
+            font-size: 14px;
+            color: #856404;
+            margin-bottom: 4px;
+        }
+        .signal-message {
+            font-size: 13px;
+            color: #856404;
+        }
+        .signal-meta {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .signal-chip {
+            background-color: rgba(0,0,0,0.05);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* Messages Area */
+        #messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-repeat: repeat;
+            background-color: #e5ddd5;
+        }
+
+        .msg-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+        }
+        .msg-wrapper.inbound {
+            align-self: flex-start;
+        }
+        .msg-wrapper.outbound {
+            align-self: flex-end;
+        }
+
+        .msg-bubble {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        }
+        .inbound .msg-bubble {
+            background-color: white;
+            border-top-left-radius: 0;
+        }
+        .outbound .msg-bubble {
+            background-color: #d9fdd3;
+            border-top-right-radius: 0;
+        }
+
+        .msg-meta {
+            font-size: 10px;
+            color: #667781;
+            margin-top: 4px;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .date-separator {
+            align-self: center;
+            margin: 16px 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #54656f;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+        }
+
+        /* Input Area */
+        .input-area {
+            background-color: #f0f2f5;
+            padding: 10px 16px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            border-top: 1px solid #d1d7db;
+        }
+        #message-input {
+            flex: 1;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 15px;
+            max-height: 120px;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+        }
+        #send-btn {
+            background-color: #00a884;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #send-btn:hover {
+            background-color: #008f6f;
+        }
+        #send-btn:disabled {
+            background-color: #aebac1;
+            cursor: not-allowed;
+        }
+
+        /* States */
+        .hidden { display: none !important; }
+        #loading-state, #empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #667781;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Manual Search */
+        .manual-search-container {
+            padding: 16px;
+            background-color: white;
+            border-bottom: 1px solid #d1d7db;
+        }
+        .search-box {
+            display: flex;
+            gap: 8px;
+        }
+        #manual-search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d7db;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #manual-search-btn {
+            padding: 8px 16px;
+            background-color: #00a884;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #manual-search-results {
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .search-result-card {
+            padding: 10px;
+            border: 1px solid #e9edef;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .search-result-name { font-weight: 600; font-size: 14px; }
+        .search-result-meta { font-size: 12px; color: #667781; }
+        .search-result-action {
+            font-size: 12px;
+            color: #00a884;
+            background: none;
+            border: 1px solid #00a884;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Toast */
+        .status-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #323232;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .status-toast.show { opacity: 1; }
+        .status-toast.error { background-color: #d32f2f; }
+        .status-toast.success { background-color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="contact-info">
+            <div id="contact-name">Loading...</div>
+            <div id="contact-phone">Please wait</div>
+        </div>
+    </div>
+
+    <div id="signal-panel" class="signal-panel">
+        <div id="signal-subject" class="signal-subject"></div>
+        <div id="signal-message" class="signal-message"></div>
+        <div id="signal-time" style="font-size: 11px; color: #999; margin-top: 4px;"></div>
+        <div id="signal-meta" class="signal-meta"></div>
+    </div>
+
+    <div id="loading-state">
+        <div style="font-size: 18px; margin-bottom: 8px;">Connecting to WhatsApp...</div>
+        <div style="font-size: 14px;">Fetching your conversation history</div>
+    </div>
+
+    <div id="empty-state" class="hidden">
+        <div class="manual-search-container">
+            <div id="manual-search-hint" style="font-size: 13px; margin-bottom: 12px; color: #666;">
+                No conversation found for this record. Search by phone or name to load manually.
+            </div>
+            <div class="search-box">
+                <input type="text" id="manual-search-input" placeholder="Phone number or name...">
+                <button id="manual-search-btn">Search</button>
+            </div>
+            <div id="manual-search-results"></div>
+        </div>
+        <div style="margin-top: 40px;">
+            <div style="font-size: 16px; font-weight: 600; color: #8696a0;">No messages yet</div>
+            <div style="font-size: 14px; color: #8696a0; margin-top: 4px;">Send a message to start the conversation</div>
+        </div>
+    </div>
+
+    <div id="messages-area"></div>
+
+    <div class="input-area">
+        <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
+        <button id="send-btn" disabled>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div id="status-toast" class="status-toast"></div>
+
+    <script src="https://live.zwidgets.com/js-sdk/1.1/ZohoEmbededAppSDK.min.js"></script>
+    <script src="widget.js?v=20260428"></script>
+</body>
+</html>
