@@ -16,7 +16,18 @@ function createBackendRouter(options = {}) {
     options.storagePath || path.join(__dirname, "data", "messages.json");
   const graphApiVersion = options.graphApiVersion || process.env.WA_GRAPH_API_VERSION || "v25.0";
 
-  // CORS is now handled globally in index.js
+  router.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+
+    next();
+  });
   router.use(express.json({ limit: "1mb" }));
   router.use(express.urlencoded({ extended: false }));
 
@@ -214,8 +225,6 @@ function createBackendRouter(options = {}) {
       const phone = normalizePhone(req.body.phone);
       const text = typeof req.body.message === "string" ? req.body.message.trim() : "";
 
-      console.log(`[Outbound] Attempting to send message to ${phone}`);
-
       if (!phone || !text) {
         res.status(400).json({ success: false, error: "phone and message are required" });
         return;
@@ -233,7 +242,6 @@ function createBackendRouter(options = {}) {
 
       const sendConfig = getOutboundSendConfig(graphApiVersion);
       if (!sendConfig.enabled) {
-        console.error(`[Outbound] Provider not enabled: ${sendConfig.reason}`);
         res.status(500).json({
           success: false,
           error: sendConfig.reason,
@@ -241,9 +249,7 @@ function createBackendRouter(options = {}) {
         return;
       }
 
-      console.log(`[Outbound] Using provider: ${sendConfig.provider} at ${sendConfig.url}`);
       const responseBody = await postJson(sendConfig.url, payload, sendConfig.headers);
-      console.log(`[Outbound] Provider response:`, JSON.stringify(responseBody));
 
       const messageId = responseBody.messages && responseBody.messages[0] && responseBody.messages[0].id;
       const timestamp = new Date().toISOString();
@@ -272,7 +278,6 @@ function createBackendRouter(options = {}) {
         meta: responseBody,
       });
     } catch (error) {
-      console.error(`[Outbound] Error: ${error.message}`, error.details || "");
       res.status(error.statusCode || 502).json({
         success: false,
         error: error.message || "Failed to send WhatsApp message",
@@ -297,12 +302,10 @@ function createBackendRouter(options = {}) {
 
   router.post("/webhook/whatsapp", async (req, res) => {
     try {
-      console.log("[Webhook] Received payload:", JSON.stringify(req.body));
       const incoming = extractWebhookMessages(req.body, process.env.WA_PHONE_NUMBER_ID);
       const statuses = extractWebhookStatuses(req.body);
 
       if (incoming.length > 0) {
-        console.log(`[Webhook] Extracted ${incoming.length} incoming messages`);
         appendMessages(storagePath, incoming);
         await Promise.allSettled(
           incoming.map((message) => enrichAndRaiseSignalForMessage(message, storagePath))
@@ -310,13 +313,11 @@ function createBackendRouter(options = {}) {
       }
 
       if (statuses.length > 0) {
-        console.log(`[Webhook] Extracted ${statuses.length} status updates`);
         updateMessageStatuses(storagePath, statuses);
       }
 
       res.status(200).send("EVENT_RECEIVED");
     } catch (error) {
-      console.error("[Webhook] Error processing payload:", error.message);
       res.status(500).json({
         error: "Failed to process webhook payload",
         message: error.message,
@@ -586,7 +587,7 @@ function timestampToIso(timestamp) {
 
 function createLocalMessageId(seed) {
   if (seed) {
-    return `msg_${seed}`;
+    return `msg_${String(seed).replace(/[^a-zA-Z0-9_-]/g, "")}`;
   }
 
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -623,10 +624,8 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
   const signalConfig = getSignalConfig();
 
   try {
-    console.log(`[Signal] Searching Zoho record for phone: ${message.phone}`);
     const record = await findZohoRecordByPhone(message.phone);
     if (!record) {
-      console.log(`[Signal] No record found for ${message.phone}`);
       patchStoredMessage(storagePath, message.id, {
         crmSignal: {
           attempted: true,
@@ -642,7 +641,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
       return;
     }
 
-    console.log(`[Signal] Found record: ${record.module} ${record.id} (${record.name})`);
     const patch = {
       contactId: record.id,
       contactName: record.name,
@@ -652,9 +650,7 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
     if (signalConfig.enabled) {
       try {
         const signalPayload = buildZohoSignalPayload(message, record, signalConfig);
-        console.log(`[Signal] Raising signal for ${record.id} in namespace ${signalConfig.namespace}`);
         const response = await raiseZohoSignal(signalPayload);
-        console.log(`[Signal] Zoho response:`, JSON.stringify(response));
         patch.crmSignal = {
           attempted: true,
           triggered: true,
@@ -665,7 +661,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
           response,
         };
       } catch (error) {
-        console.error(`[Signal] Error raising signal: ${error.message}`, error.details || "");
         patch.crmSignal = {
           attempted: true,
           triggered: false,
@@ -674,7 +669,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
         };
       }
     } else {
-      console.log(`[Signal] Signal disabled: ${signalConfig.reason}`);
       patch.crmSignal = {
         attempted: false,
         triggered: false,
@@ -683,7 +677,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
     }
 
     try {
-      console.log(`[Note] Creating note for ${record.module} ${record.id}`);
       const noteResponse = await createZohoNoteForMessage(message, record);
       patch.crmNote = {
         attempted: true,
@@ -694,7 +687,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
         response: noteResponse,
       };
     } catch (error) {
-      console.error(`[Note] Error creating note: ${error.message}`, error.details || "");
       patch.crmNote = {
         attempted: true,
         created: false,
@@ -705,7 +697,6 @@ async function enrichAndRaiseSignalForMessage(message, storagePath) {
 
     patchStoredMessage(storagePath, message.id, patch);
   } catch (error) {
-    console.error(`[Signal/Note] General error: ${error.message}`);
     patchStoredMessage(storagePath, message.id, {
       crmSignal: {
         attempted: true,
@@ -874,8 +865,6 @@ async function findZohoRecordByPhone(phone) {
   );
 
   if (contact) {
-    // If we found a contact, we still want to make sure we use the normalized phone we searched for
-    // as the primary phone if the contact's Mobile field is empty or different.
     return toZohoRecordMatch("Contacts", contact, normalizedPhone);
   }
 
@@ -933,9 +922,9 @@ function toZohoRecordMatch(moduleName, record, fallbackPhone) {
     email: record.Email || "",
     phone: normalizePhone(
       record.Mobile ||
-      fallbackPhone ||
       record.Phone ||
-      record.Other_Phone
+      record.Other_Phone ||
+      fallbackPhone
     ),
   };
 }
