@@ -1,0 +1,72 @@
+/*
+Cliq command: /visaexport <mobile-number> <pdf|csv>
+Example: /visaexport 60123456789 pdf
+
+Create this as a Zoho Cliq command-execution function and map the command
+name to visaexport. The dialogcrm connection must be configured to send the
+same adviser authentication accepted by the AppSail export endpoint:
+X-Export-Token, or Authorization: Bearer <token>.
+*/
+
+message = Map();
+raw = ifnull(arguments, "").trim();
+parts = raw.toList(" ");
+
+if(parts.size() < 2)
+{
+    message.put("text", "Usage: /visaexport <mobile-number> <pdf|csv>\nExample: /visaexport 60123456789 pdf");
+    return message;
+}
+
+mobile = parts.get(0).replaceAll("[^0-9]", "");
+format = parts.get(1).toLowerCase();
+
+if(mobile == "" || mobile.length() < 8)
+{
+    message.put("text", "Please provide a valid mobile number with country code, for example 60123456789.");
+    return message;
+}
+
+if(format != "pdf" && format != "csv")
+{
+    message.put("text", "The export format must be pdf or csv.\nExample: /visaexport 60123456789 pdf");
+    return message;
+}
+
+endpoint = "https://waba-10123192285.catalystappsail.com/api/visa-questionnaire/" + encodeurl(mobile) + "." + format;
+
+try
+{
+    exportResponse = invokeurl
+    [
+        url : endpoint
+        type : GET
+        connection : "dialogcrm"
+    ];
+
+    if(exportResponse == null)
+    {
+        message.put("text", "No response was received from the visa export service. Please try again or contact the administrator.");
+        return message;
+    }
+
+    // The protected endpoint returns the export as a file. Attach it directly
+    // to the Cliq response so the adviser does not receive an unauthenticated URL.
+    exportFile = List();
+    exportFile.add(exportResponse);
+    message.put("attachments", exportFile);
+    if(format == "pdf")
+    {
+        message.put("text", "The completed visa questionnaire PDF is attached.");
+    }
+    else
+    {
+        message.put("text", "The completed visa questionnaire CSV is attached.");
+    }
+}
+catch(error)
+{
+    message.put("text", "The export could not be completed. Confirm that the questionnaire is marked complete and that the dialogcrm connection has adviser export access.");
+}
+
+return message;

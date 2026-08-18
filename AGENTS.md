@@ -165,3 +165,7 @@ Before deployment, configure the existing WhatsApp webhook verification and outb
 ## Adviser Questionnaire Exports
 
 Completed questionnaire sessions can be exported from the AppSail backend using the protected endpoints `GET /api/visa-questionnaire/<mobile>.csv` and `GET /api/visa-questionnaire/<mobile>.pdf`. Requests must include either `X-Export-Token: <token>` or `Authorization: Bearer <token>`, where the token is configured only as the `VISA_EXPORT_TOKEN` AppSail environment variable. The endpoints return `401` when the token is invalid and `404` unless the session is marked complete. Do not put the token in a URL or commit it to the repository.
+
+## Zoho Cliq Adviser Export Command
+
+The ready-to-paste Deluge command-execution function is stored at `zoho/visaexport_cliq_command.deluge`. Create a Zoho Cliq slash command named `visaexport`, map it to this function, and invoke it as `/visaexport <mobile-number> <pdf|csv>`. The function calls `https://waba-10123192285.catalystappsail.com` and uses the `dialogcrm` connection. That connection must be configured to carry the adviser authentication accepted by the export endpoints, preferably as `X-Export-Token` or an equivalent `Authorization: Bearer` value. The returned PDF or CSV is attached directly to the Cliq response rather than exposing a public download URL.
