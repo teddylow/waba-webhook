@@ -153,3 +153,11 @@ Make sure the namespace in Zoho CRM settings matches exactly with `zohocrmsignal
 154	- **Incoming**: WhatsApp -> AppSail -> SalesIQ (Visitor Message)
 155	- **Outgoing**: SalesIQ (Operator Reply) -> AppSail Webhook -> WhatsApp (via 360dialog)
 156	
+
+## WhatsApp Visa Questionnaire
+
+The AppSail webhook includes a resumable, one-question-at-a-time UK visa questionnaire in `appsail-nodejs/questionnaire.cjs`. A customer starts it by sending `START`, `VISA`, `QUESTIONNAIRE`, or `BEGIN`. During the flow, `BACK`, `SUMMARY`, and `RESTART` are supported. Answers are stored in `appsail-nodejs/data/questionnaire-sessions.json` alongside the existing message store.
+
+The flow is enabled by default. Set `WA_VISA_QUESTIONNAIRE_ENABLED=false` in the AppSail environment to disable it. Outbound replies use the existing Meta or 360dialog provider configuration. The implementation records uploaded WhatsApp media as received placeholders; production document retrieval and adviser-facing storage can be added separately if required.
+
+Before deployment, configure the existing WhatsApp webhook verification and outbound credentials, then send `START` from a test mobile number and verify that each reply contains only the next questionnaire prompt.

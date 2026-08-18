@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const express = require("express");
+const questionnaire = require("./questionnaire.cjs");
 
 const PHONE_INDEX_CACHE_TTL_MS = Number(process.env.ZOHO_PHONE_INDEX_CACHE_TTL_MS || 5 * 60 * 1000);
 const PHONE_INDEX_MAX_RECORDS = Number(process.env.ZOHO_PHONE_INDEX_MAX_RECORDS || 5000);
@@ -306,6 +307,12 @@ function createBackendRouter(options = {}) {
       if (incoming.length > 0) {
         console.log(`[Webhook] Processing ${incoming.length} incoming messages`);
         appendMessages(storagePath, incoming);
+
+        if (process.env.WA_VISA_QUESTIONNAIRE_ENABLED !== "false") {
+          await Promise.allSettled(
+            incoming.map((message) => processVisaQuestionnaireMessage(message, storagePath, graphApiVersion))
+          );
+        }
         
         // Route to SalesIQ if configured
         const screenName = process.env.SALESIQ_SCREEN_NAME;
@@ -411,6 +418,57 @@ function createBackendRouter(options = {}) {
   });
 
   return router;
+}
+
+async function processVisaQuestionnaireMessage(message, storagePath, graphApiVersion) {
+  if (!message.phone || (!message.text && message.type === "text")) return;
+
+  const result = questionnaire.handleMessage({
+    filePath: path.join(path.dirname(storagePath), "questionnaire-sessions.json"),
+    phone: message.phone,
+    text: message.text,
+    type: message.type,
+  });
+
+  if (!result || !result.reply) return;
+  const command = String(message.text || "").trim().toLowerCase();
+  const hasSession = command === "visa" || command === "start" || command === "start visa" || command === "questionnaire" || command === "begin" || command === "restart" || command === "back" || command === "summary";
+  const sessionStore = readStore(path.join(path.dirname(storagePath), "questionnaire-sessions.json"));
+  const session = sessionStore.sessions[message.phone];
+  if (!hasSession && (!session || session.index < 0)) return;
+
+  await sendQuestionnaireText(message.phone, result.reply, storagePath, graphApiVersion);
+}
+
+async function sendQuestionnaireText(phone, text, storagePath, graphApiVersion) {
+  const sendConfig = getOutboundSendConfig(graphApiVersion);
+  if (!sendConfig.enabled) {
+    console.error(`[Questionnaire] Outbound provider not enabled: ${sendConfig.reason}`);
+    return;
+  }
+
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: phone,
+    type: "text",
+    text: { body: text },
+  };
+  const responseBody = await postJson(sendConfig.url, payload, sendConfig.headers);
+  const messageId = responseBody.messages?.[0]?.id || createLocalMessageId();
+  appendMessages(storagePath, [{
+    id: messageId,
+    metaMessageId: responseBody.messages?.[0]?.id || null,
+    phone,
+    from: process.env.WA_PHONE_NUMBER_ID || sendConfig.provider,
+    to: phone,
+    text,
+    type: "text",
+    direction: "outbound",
+    timestamp: new Date().toISOString(),
+    status: "sent",
+    source: "visa-questionnaire",
+  }]);
 }
 
 function clampLimit(rawLimit) {
