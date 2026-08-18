@@ -161,3 +161,7 @@ The AppSail webhook includes a resumable, one-question-at-a-time UK visa questio
 The flow is enabled by default. Set `WA_VISA_QUESTIONNAIRE_ENABLED=false` in the AppSail environment to disable it. Outbound replies use the existing Meta or 360dialog provider configuration. The implementation records uploaded WhatsApp media as received placeholders; production document retrieval and adviser-facing storage can be added separately if required.
 
 Before deployment, configure the existing WhatsApp webhook verification and outbound credentials, then send `START` from a test mobile number and verify that each reply contains only the next questionnaire prompt.
+
+## Adviser Questionnaire Exports
+
+Completed questionnaire sessions can be exported from the AppSail backend using the protected endpoints `GET /api/visa-questionnaire/<mobile>.csv` and `GET /api/visa-questionnaire/<mobile>.pdf`. Requests must include either `X-Export-Token: <token>` or `Authorization: Bearer <token>`, where the token is configured only as the `VISA_EXPORT_TOKEN` AppSail environment variable. The endpoints return `401` when the token is invalid and `404` unless the session is marked complete. Do not put the token in a URL or commit it to the repository.

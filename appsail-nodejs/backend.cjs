@@ -3,6 +3,7 @@ const path = require("path");
 const https = require("https");
 const express = require("express");
 const questionnaire = require("./questionnaire.cjs");
+const questionnaireExport = require("./questionnaire-export.cjs");
 
 const PHONE_INDEX_CACHE_TTL_MS = Number(process.env.ZOHO_PHONE_INDEX_CACHE_TTL_MS || 5 * 60 * 1000);
 const PHONE_INDEX_MAX_RECORDS = Number(process.env.ZOHO_PHONE_INDEX_MAX_RECORDS || 5000);
@@ -194,6 +195,46 @@ function createBackendRouter(options = {}) {
         details: error.details || null,
       });
     }
+  });
+
+  router.get("/api/visa-questionnaire/:phone.csv", (req, res) => {
+    if (!questionnaireExport.verifyExportToken(req)) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    const phone = questionnaireExport.normalizePhone(req.params.phone);
+    const session = questionnaireExport.readCompletedSession(
+      path.join(path.dirname(storagePath), "questionnaire-sessions.json"),
+      phone
+    );
+    if (!session) {
+      res.status(404).json({ ok: false, error: "No completed questionnaire found for this mobile number" });
+      return;
+    }
+    res.status(200)
+      .set("Content-Type", "text/csv; charset=utf-8")
+      .set("Content-Disposition", `attachment; filename="visa-questionnaire-${phone}.csv"`)
+      .send(questionnaireExport.toCsv(session));
+  });
+
+  router.get("/api/visa-questionnaire/:phone.pdf", (req, res) => {
+    if (!questionnaireExport.verifyExportToken(req)) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    const phone = questionnaireExport.normalizePhone(req.params.phone);
+    const session = questionnaireExport.readCompletedSession(
+      path.join(path.dirname(storagePath), "questionnaire-sessions.json"),
+      phone
+    );
+    if (!session) {
+      res.status(404).json({ ok: false, error: "No completed questionnaire found for this mobile number" });
+      return;
+    }
+    res.status(200)
+      .set("Content-Type", "application/pdf")
+      .set("Content-Disposition", `attachment; filename="visa-questionnaire-${phone}.pdf"`)
+      .send(questionnaireExport.toPdf(session));
   });
 
   router.get("/api/messages", (req, res) => {
